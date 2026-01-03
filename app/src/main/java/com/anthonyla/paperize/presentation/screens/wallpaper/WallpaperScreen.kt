@@ -622,7 +622,8 @@ fun WallpaperScreen(
                                     1 -> ScalingType.FIT
                                     2 -> ScalingType.STRETCH
                                     3 -> ScalingType.NONE
-                                    else -> ScalingType.CENTER
+                                    4 -> ScalingType.CENTER
+                                    else -> ScalingType.FILL  // Fallback to FILL for unexpected values
                                 }
                                 onUpdateScheduleSettings(
                                     if (wallpaperMode == WallpaperMode.LIVE) {
