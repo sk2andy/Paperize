@@ -77,12 +77,12 @@ class ScalingTypeTest {
     // ============================================================
 
     @Test
-    fun `enum has exactly four values`() {
+    fun `enum has exactly five values`() {
         assertEquals(5, ScalingType.entries.size)
     }
 
     @Test
-    fun `enum values are FILL, FIT, STRETCH, NONE`() {
+    fun `enum values are FILL, FIT, STRETCH, NONE, CENTER`() {
         assertTrue(ScalingType.entries.contains(ScalingType.FILL))
         assertTrue(ScalingType.entries.contains(ScalingType.FIT))
         assertTrue(ScalingType.entries.contains(ScalingType.STRETCH))
