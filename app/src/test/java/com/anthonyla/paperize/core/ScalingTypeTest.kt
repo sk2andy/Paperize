@@ -33,6 +33,11 @@ class ScalingTypeTest {
     }
 
     @Test
+    fun `fromString with CENTER returns CENTER`() {
+        assertEquals(ScalingType.CENTER, ScalingType.fromString("CENTER"))
+    }
+
+    @Test
     fun `fromString is case insensitive`() {
         assertEquals(ScalingType.FILL, ScalingType.fromString("fill"))
         assertEquals(ScalingType.FILL, ScalingType.fromString("Fill"))
@@ -40,6 +45,8 @@ class ScalingTypeTest {
         assertEquals(ScalingType.FIT, ScalingType.fromString("Fit"))
         assertEquals(ScalingType.STRETCH, ScalingType.fromString("stretch"))
         assertEquals(ScalingType.NONE, ScalingType.fromString("none"))
+        assertEquals(ScalingType.CENTER, ScalingType.fromString("center"))
+        assertEquals(ScalingType.CENTER, ScalingType.fromString("Center"))
     }
 
     @Test
@@ -56,7 +63,6 @@ class ScalingTypeTest {
     fun `fromString with invalid value returns FILL as default`() {
         assertEquals(ScalingType.FILL, ScalingType.fromString("invalid"))
         assertEquals(ScalingType.FILL, ScalingType.fromString("crop"))
-        assertEquals(ScalingType.FILL, ScalingType.fromString("center"))
         assertEquals(ScalingType.FILL, ScalingType.fromString("123"))
     }
 
@@ -71,16 +77,17 @@ class ScalingTypeTest {
     // ============================================================
 
     @Test
-    fun `enum has exactly four values`() {
-        assertEquals(4, ScalingType.entries.size)
+    fun `enum has exactly five values`() {
+        assertEquals(5, ScalingType.entries.size)
     }
 
     @Test
-    fun `enum values are FILL, FIT, STRETCH, NONE`() {
+    fun `enum values are FILL, FIT, STRETCH, NONE, CENTER`() {
         assertTrue(ScalingType.entries.contains(ScalingType.FILL))
         assertTrue(ScalingType.entries.contains(ScalingType.FIT))
         assertTrue(ScalingType.entries.contains(ScalingType.STRETCH))
         assertTrue(ScalingType.entries.contains(ScalingType.NONE))
+        assertTrue(ScalingType.entries.contains(ScalingType.CENTER))
     }
 
     @Test
@@ -89,5 +96,6 @@ class ScalingTypeTest {
         assertEquals("FIT", ScalingType.FIT.name)
         assertEquals("STRETCH", ScalingType.STRETCH.name)
         assertEquals("NONE", ScalingType.NONE.name)
+        assertEquals("CENTER", ScalingType.CENTER.name)
     }
 }

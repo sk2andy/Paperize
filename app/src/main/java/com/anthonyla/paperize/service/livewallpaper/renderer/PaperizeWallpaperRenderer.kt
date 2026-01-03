@@ -366,6 +366,11 @@ class PaperizeWallpaperRenderer(
             ScalingType.NONE -> {
                 Pair(1f, 1f)
             }
+            ScalingType.CENTER -> {
+                // Same as FILL - crop to fill the screen
+                val scale = kotlin.math.max(scaleX, scaleY)
+                Pair(scale, scale)
+            }
         }
 
         var effectiveScaleX = finalScaleX
@@ -374,9 +379,10 @@ class PaperizeWallpaperRenderer(
         val parallaxEnabled = currentEffects.enableParallax && currentEffects.parallaxIntensity > 0
         val parallaxIntensity = if (parallaxEnabled) currentEffects.parallaxIntensity / 100f else 0f
 
-        // If parallax is enabled, ensure we have enough width to scroll (overscan).
+        // If parallax is enabled (and not in CENTER mode), ensure we have enough width to scroll (overscan).
         // If image fits perfectly, apply artificial zoom based on intensity.
-        if (parallaxEnabled) {
+        // CENTER mode ignores parallax and always centers the image
+        if (parallaxEnabled && currentScalingType != ScalingType.CENTER) {
             val currentWidth = imageWidth * effectiveScaleX
             // Target at least 20% overscan at max intensity
             val minExtraWidth = viewWidth * parallaxIntensity * 0.2f
@@ -402,10 +408,12 @@ class PaperizeWallpaperRenderer(
         
         // Calculate offset based on scroll position (0.0 = left, 1.0 = right)
         // Center (0.5) is 0 offset
+        // For CENTER mode, always use 0.5 (center) regardless of normalOffsetX
         // Reverting to: `maxParallaxOffset = extraWidth`.
         // And relying on the "Zoom" logic to create that width if needed.
         val maxParallaxOffset = extraWidth
-        val parallaxOffset = maxParallaxOffset * (0.5f - normalOffsetX)
+        val effectiveOffsetX = if (currentScalingType == ScalingType.CENTER) 0.5f else normalOffsetX
+        val parallaxOffset = maxParallaxOffset * (0.5f - effectiveOffsetX)
         
         // Verbose logging removed to avoid per-frame log spam
 

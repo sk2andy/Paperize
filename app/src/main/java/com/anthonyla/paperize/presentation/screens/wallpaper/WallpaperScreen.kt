@@ -162,7 +162,8 @@ fun WallpaperScreen(
         stringResource(R.string.fill),
         stringResource(R.string.fit),
         stringResource(R.string.stretch),
-        stringResource(R.string.none)
+        stringResource(R.string.none),
+        stringResource(R.string.center)
     )
 
     var selectedScalingIndex by rememberSaveable {
@@ -172,6 +173,7 @@ fun WallpaperScreen(
                 ScalingType.FIT -> 1
                 ScalingType.STRETCH -> 2
                 ScalingType.NONE -> 3
+                ScalingType.CENTER -> 4
             }
         )
     }
@@ -619,7 +621,9 @@ fun WallpaperScreen(
                                     0 -> ScalingType.FILL
                                     1 -> ScalingType.FIT
                                     2 -> ScalingType.STRETCH
-                                    else -> ScalingType.NONE
+                                    3 -> ScalingType.NONE
+                                    4 -> ScalingType.CENTER
+                                    else -> ScalingType.FILL  // Fallback to FILL for unexpected values
                                 }
                                 onUpdateScheduleSettings(
                                     if (wallpaperMode == WallpaperMode.LIVE) {
