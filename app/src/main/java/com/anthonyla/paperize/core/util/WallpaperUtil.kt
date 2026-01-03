@@ -251,7 +251,7 @@ fun retrieveBitmap(
             val srcHeight = info.size.height
 
             when (scaling) {
-                ScalingType.FILL -> {
+                ScalingType.FILL, ScalingType.CENTER -> {
                     // Scale to fill, then crop to canvas during decode.
                     // setCrop avoids allocating the full fill-scale bitmap (which can be
                     // much taller/wider than the canvas) — major OOM prevention.
@@ -259,7 +259,8 @@ fun retrieveBitmap(
                     val targetW = (srcWidth * scale).fastRoundToInt()
                     val targetH = (srcHeight * scale).fastRoundToInt()
                     decoder.setTargetSize(targetW, targetH)
-                    if (!preserveSourceOverflow && (targetW > width || targetH > height)) {
+                    val retainOverflow = preserveSourceOverflow && scaling == ScalingType.FILL
+                    if (!retainOverflow && (targetW > width || targetH > height)) {
                         val cropX = ((targetW - width) / 2).coerceAtLeast(0)
                         val cropY = ((targetH - height) / 2).coerceAtLeast(0)
                         decoder.setCrop(android.graphics.Rect(
@@ -367,8 +368,8 @@ private fun scaleToFillPreservingOverflow(
 /**
  * Produce a bitmap of exactly [canvasW] × [canvasH] pixels according to [scaling]:
  *
- * - FILL:    the source already fills (or overflows) the canvas because [retrieveBitmap]
- *            decoded it at fill-scale.  Center-crop any overflow.
+ * - FILL / CENTER: the source already fills (or overflows) the canvas because [retrieveBitmap]
+ *                  decoded it at fill-scale. Center-crop any overflow.
  * - FIT:     the source fits within the canvas but may leave empty margins.
  *            Draw it centered on a black [canvasW]×[canvasH] bitmap.
  * - STRETCH: [retrieveBitmap] decoded to the exact canvas size; nothing to do.
@@ -380,7 +381,7 @@ private fun finalizeToCanvas(source: Bitmap, canvasW: Int, canvasH: Int, scaling
     val sh = source.height
 
     return when (scaling) {
-        ScalingType.FILL -> {
+        ScalingType.FILL, ScalingType.CENTER -> {
             // Primary path (ImageDecoder): source was decoded at fill-scale so it is
             // >= canvasW wide AND >= canvasH tall.  Center-crop to exact canvas size.
             // Fallback path (BitmapFactory): source may be smaller if the image needed

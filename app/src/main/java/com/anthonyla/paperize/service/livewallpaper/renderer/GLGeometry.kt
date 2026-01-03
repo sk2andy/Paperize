@@ -57,7 +57,7 @@ object GLGeometry {
         val scaleX = viewWidth / imageWidth
         val scaleY = viewHeight / imageHeight
         val (baseScaleX, baseScaleY) = when (scalingType) {
-            ScalingType.FILL -> max(scaleX, scaleY).let { it to it }
+            ScalingType.FILL, ScalingType.CENTER -> max(scaleX, scaleY).let { it to it }
             ScalingType.FIT -> min(scaleX, scaleY).let { it to it }
             ScalingType.STRETCH -> scaleX to scaleY
             ScalingType.NONE -> 1f to 1f
@@ -65,7 +65,7 @@ object GLGeometry {
 
         var effectiveScaleX = baseScaleX
         var effectiveScaleY = baseScaleY
-        val intensity = if (parallaxEnabled) {
+        val intensity = if (parallaxEnabled && scalingType != ScalingType.CENTER) {
             parallaxIntensity.coerceIn(0, 100) / 100f
         } else {
             0f

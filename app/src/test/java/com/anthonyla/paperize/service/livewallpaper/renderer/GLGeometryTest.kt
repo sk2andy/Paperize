@@ -63,6 +63,30 @@ class GLGeometryTest {
     }
 
     @Test
+    fun `center fills view and ignores launcher offset`() {
+        val left = transform(ScalingType.CENTER, offset = 0f)
+        val right = transform(ScalingType.CENTER, offset = 1f)
+        val exactFit = GLGeometry.calculateWallpaperTransform(
+            viewWidth = 100f,
+            viewHeight = 200f,
+            imageWidth = 100f,
+            imageHeight = 200f,
+            scalingType = ScalingType.CENTER,
+            parallaxEnabled = true,
+            parallaxIntensity = 100,
+            normalizedOffsetX = 0f
+        )
+
+        assertEquals(400f, left.scaledWidth, 0.001f)
+        assertEquals(0f, left.horizontalOffset, 0.001f)
+        assertEquals(left.scaledWidth, right.scaledWidth, 0.001f)
+        assertEquals(left.scaledHeight, right.scaledHeight, 0.001f)
+        assertEquals(0f, right.horizontalOffset, 0.001f)
+        assertEquals(100f, exactFit.scaledWidth, 0.001f)
+        assertEquals(0f, exactFit.horizontalOffset, 0.001f)
+    }
+
+    @Test
     fun `crossfade keeps current opaque while next fades in`() {
         val start = GLGeometry.calculateCrossfadeAlphas(0f, hasNextPicture = true)
         val midpoint = GLGeometry.calculateCrossfadeAlphas(0.5f, hasNextPicture = true)

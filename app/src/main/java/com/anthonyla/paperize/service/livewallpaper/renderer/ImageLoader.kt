@@ -66,7 +66,7 @@ class ContentUriImageLoader(
                     val srcHeight = info.size.height
 
                     val (decodeWidth, decodeHeight) = when (scalingType) {
-                        ScalingType.FILL -> {
+                        ScalingType.FILL, ScalingType.CENTER -> {
                             val scale = maxOf(
                                 targetWidth.toFloat() / srcWidth,
                                 targetHeight.toFloat() / srcHeight
