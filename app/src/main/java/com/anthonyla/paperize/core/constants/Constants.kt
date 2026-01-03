@@ -188,6 +188,7 @@ object PreferenceKeys {
     const val LIVE_ENABLE_CHANGE_ON_SCREEN_ON = "live_enable_change_on_screen_on"
     const val LIVE_ENABLE_PARALLAX = "live_enable_parallax"
     const val LIVE_PARALLAX_INTENSITY = "live_parallax_intensity"
+    const val LIVE_ENABLE_BLUR_OFF_CENTER = "live_enable_blur_off_center"
 
     // Scaling
     const val HOME_SCALING_TYPE = "home_scaling_type"
