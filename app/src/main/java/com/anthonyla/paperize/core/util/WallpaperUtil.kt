@@ -203,8 +203,8 @@ fun retrieveBitmap(
         val source = ImageDecoder.createSource(context.contentResolver, wallpaperUri)
         ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
             val (targetWidth, targetHeight) = when (scaling) {
-                ScalingType.FILL -> {
-                    // Calculate scale to cover target dimensions
+                ScalingType.FILL, ScalingType.CENTER -> {
+                    // Calculate scale to cover target dimensions (CENTER behaves like FILL for loading)
                     val widthRatio = width.toFloat() / imageSize.width
                     val heightRatio = height.toFloat() / imageSize.height
                     val scale = maxOf(widthRatio, heightRatio)

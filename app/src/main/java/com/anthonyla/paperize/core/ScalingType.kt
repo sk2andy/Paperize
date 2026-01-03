@@ -22,7 +22,12 @@ enum class ScalingType {
     /**
      * Display at original size
      */
-    NONE;
+    NONE,
+
+    /**
+     * Fill the screen like FILL, but center the image on the first screen
+     */
+    CENTER;
 
     companion object {
         fun fromString(value: String?): ScalingType {

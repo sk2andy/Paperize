@@ -77,6 +77,7 @@
   <string name="fill">Fill</string>
   <string name="fit">Fit</string>
   <string name="stretch">Stretch</string>
+  <string name="center">Center</string>
   <string name="change_brightness">Brightness Effect</string>
   <string name="home_screen_btn">Home Screen</string>
   <string name="lock_screen_btn">Lock Screen</string>
