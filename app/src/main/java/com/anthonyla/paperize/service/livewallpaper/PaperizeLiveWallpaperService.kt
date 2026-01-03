@@ -103,6 +103,10 @@ class PaperizeLiveWallpaperService : GLWallpaperService(), LifecycleOwner {
         private val engineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
         private var currentAlbumId: String? = null
         private var hasShownParallaxWarning = false
+        
+        // Store base effects settings (without dynamic blur adjustments)
+        private var baseEffects: WallpaperEffects = WallpaperEffects.none()
+        private var currentOffset: Float = 0.5f
 
         private val gestureDetector = GestureDetector(
             this@PaperizeLiveWallpaperService,
@@ -283,8 +287,13 @@ class PaperizeLiveWallpaperService : GLWallpaperService(), LifecycleOwner {
                     val albumId = settings.liveAlbumId
                     val effects = settings.liveEffects
                     val scalingType = settings.liveScalingType
+                    
+                    // Store base effects for dynamic blur calculation
+                    baseEffects = effects
 
-                    renderer.updateEffects(effects)
+                    // Apply effects with dynamic blur adjustment based on current offset
+                    val effectsToApply = calculateEffectsWithOffsetBlur(effects, currentOffset)
+                    renderer.updateEffects(effectsToApply)
                     renderer.updateScalingType(scalingType)
                     renderer.updateAdaptiveBrightness(settings.adaptiveBrightness)
                     
@@ -330,7 +339,14 @@ class PaperizeLiveWallpaperService : GLWallpaperService(), LifecycleOwner {
         ) {
             super.onOffsetsChanged(xOffset, yOffset, xOffsetStep, yOffsetStep, xPixelOffset, yPixelOffset)
             Log.d(TAG, "onOffsetsChanged: xOffset=$xOffset, xOffsetStep=$xOffsetStep, xPixelOffset=$xPixelOffset")
+            
+            // Update parallax offset
             renderer.setNormalOffsetX(xOffset)
+            
+            // Update current offset and apply dynamic blur if enabled
+            currentOffset = xOffset
+            val effectsToApply = calculateEffectsWithOffsetBlur(baseEffects, currentOffset)
+            renderer.updateEffects(effectsToApply)
         }
 
         override fun onTouchEvent(event: MotionEvent) {
@@ -340,6 +356,41 @@ class PaperizeLiveWallpaperService : GLWallpaperService(), LifecycleOwner {
                 Log.w(TAG, "Error processing touch event", e)
             }
             super.onTouchEvent(event)
+        }
+        
+        /**
+         * Calculate effects with dynamic blur based on home screen offset.
+         * When enableBlurOffCenter is true and offset differs significantly from center (0.5),
+         * blur is applied automatically.
+         * 
+         * @param effects Base effects settings from user preferences
+         * @param offset Current home screen offset (0.0 = leftmost, 0.5 = center, 1.0 = rightmost)
+         * @return Modified effects with blur applied based on offset position
+         */
+        private fun calculateEffectsWithOffsetBlur(effects: WallpaperEffects, offset: Float): WallpaperEffects {
+            // If the feature is disabled, return base effects unchanged
+            if (!effects.enableBlurOffCenter) {
+                return effects
+            }
+            
+            // Define threshold for "off center" detection
+            // Use 0.1 to allow some tolerance (0.4 to 0.6 is considered "center")
+            val centerThreshold = 0.1f
+            val isOffCenter = kotlin.math.abs(offset - 0.5f) > centerThreshold
+            
+            // If off center, enable blur with a default percentage
+            // If already on center or blur already enabled by user, respect existing settings
+            return if (isOffCenter) {
+                // Apply blur when off center, use default 50% if not already enabled
+                val blurPercentage = if (effects.enableBlur) effects.blurPercentage else 50
+                effects.copy(
+                    enableBlur = true,
+                    blurPercentage = blurPercentage
+                )
+            } else {
+                // When on center, use the base blur settings (may be enabled or disabled by user)
+                effects
+            }
         }
 
         override fun onDestroy() {
