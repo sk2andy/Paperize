@@ -41,6 +41,7 @@ import androidx.core.net.toUri
 import com.anthonyla.paperize.core.constants.Constants
 import com.anthonyla.paperize.core.util.isValid
 import com.anthonyla.paperize.domain.model.Wallpaper
+import com.anthonyla.paperize.domain.model.WallpaperEffects
 import com.anthonyla.paperize.service.livewallpaper.gl.GLCompatibility
 import android.os.Handler
 import android.os.Looper
@@ -103,6 +104,12 @@ class PaperizeLiveWallpaperService : GLWallpaperService(), LifecycleOwner {
         private val engineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
         private var currentAlbumId: String? = null
         private var hasShownParallaxWarning = false
+        
+        // Store base effects settings (without dynamic blur adjustments)
+        private var baseEffects: WallpaperEffects = WallpaperEffects.none()
+        private var currentOffset: Float = 0.5f
+        private var currentOffsetStep: Float = 0.0f
+        private var homeScreenOffset: Float? = null  // Track the home screen position
 
         private val gestureDetector = GestureDetector(
             this@PaperizeLiveWallpaperService,
@@ -283,8 +290,13 @@ class PaperizeLiveWallpaperService : GLWallpaperService(), LifecycleOwner {
                     val albumId = settings.liveAlbumId
                     val effects = settings.liveEffects
                     val scalingType = settings.liveScalingType
+                    
+                    // Store base effects for dynamic blur calculation
+                    baseEffects = effects
 
-                    renderer.updateEffects(effects)
+                    // Apply effects with dynamic blur adjustment based on current offset
+                    val effectsToApply = calculateEffectsWithOffsetBlur(effects, currentOffset, currentOffsetStep)
+                    renderer.updateEffects(effectsToApply)
                     renderer.updateScalingType(scalingType)
                     renderer.updateAdaptiveBrightness(settings.adaptiveBrightness)
                     
@@ -330,7 +342,21 @@ class PaperizeLiveWallpaperService : GLWallpaperService(), LifecycleOwner {
         ) {
             super.onOffsetsChanged(xOffset, yOffset, xOffsetStep, yOffsetStep, xPixelOffset, yPixelOffset)
             Log.d(TAG, "onOffsetsChanged: xOffset=$xOffset, xOffsetStep=$xOffsetStep, xPixelOffset=$xPixelOffset")
+            
+            // Capture the home screen offset on first call (this is where the user starts)
+            if (homeScreenOffset == null && xOffsetStep > 0.01f) {
+                homeScreenOffset = xOffset
+                Log.d(TAG, "Home screen offset captured: $homeScreenOffset")
+            }
+            
+            // Update parallax offset
             renderer.setNormalOffsetX(xOffset)
+            
+            // Update current offset and offset step, then apply dynamic blur if enabled
+            currentOffset = xOffset
+            currentOffsetStep = xOffsetStep
+            val effectsToApply = calculateEffectsWithOffsetBlur(baseEffects, currentOffset, currentOffsetStep)
+            renderer.updateEffects(effectsToApply)
         }
 
         override fun onTouchEvent(event: MotionEvent) {
@@ -340,6 +366,60 @@ class PaperizeLiveWallpaperService : GLWallpaperService(), LifecycleOwner {
                 Log.w(TAG, "Error processing touch event", e)
             }
             super.onTouchEvent(event)
+        }
+        
+        /**
+         * Calculate effects with dynamic blur based on home screen offset.
+         * When enableBlurOffCenter is true, blur is applied on all screens except the home screen.
+         * The blur fades in/out smoothly during transitions.
+         * 
+         * @param effects Base effects settings from user preferences
+         * @param offset Current home screen offset (0.0 = leftmost screen, 1.0 = rightmost screen)
+         * @param offsetStep Step between screens (e.g., 0.25 for 4 screens, 0.33 for 3 screens)
+         * @return Modified effects with blur applied based on distance from home screen
+         */
+        private fun calculateEffectsWithOffsetBlur(effects: WallpaperEffects, offset: Float, offsetStep: Float): WallpaperEffects {
+            // If the feature is disabled, return base effects unchanged
+            if (!effects.enableBlurOffCenter) {
+                return effects
+            }
+            
+            // If offsetStep is 0 or very small, we only have one screen, so never blur
+            if (offsetStep < 0.01f) {
+                return effects
+            }
+            
+            // If we haven't captured the home screen offset yet, don't apply blur
+            val homeOffset = homeScreenOffset ?: return effects
+            
+            // Calculate distance from home screen in terms of screen units
+            val distanceFromHome = kotlin.math.abs(offset - homeOffset)
+            
+            // Calculate blur intensity based on distance from home
+            // Within 0.5 offset units (half a screen) from home: fade from 0% to 100% blur
+            // Beyond 0.5 offset units: full 100% blur
+            val blurIntensity = if (distanceFromHome < 0.5f * offsetStep) {
+                // Smooth fade-in zone: 0% at home, 100% at 0.5 screens away
+                (distanceFromHome / (0.5f * offsetStep)).coerceIn(0f, 1f)
+            } else {
+                // Full blur when more than 0.5 screens away
+                1f
+            }
+            
+            // If blur intensity is very low (< 1%), don't apply blur to avoid artifacts
+            if (blurIntensity < 0.01f) {
+                return effects
+            }
+            
+            // Calculate the blur percentage to apply
+            val baseBlurPercentage = if (effects.enableBlur) effects.blurPercentage else 50
+            val adjustedBlurPercentage = (baseBlurPercentage * blurIntensity).toInt().coerceIn(1, 100)
+            
+            // Apply blur with the calculated intensity
+            return effects.copy(
+                enableBlur = true,
+                blurPercentage = adjustedBlurPercentage
+            )
         }
 
         override fun onDestroy() {

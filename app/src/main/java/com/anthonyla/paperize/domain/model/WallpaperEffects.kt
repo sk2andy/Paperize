@@ -23,7 +23,10 @@ data class WallpaperEffects(
     val enableDoubleTap: Boolean = false,
     val enableChangeOnScreenOn: Boolean = false,
     val enableParallax: Boolean = false,
-    val parallaxIntensity: Int = Constants.DEFAULT_PARALLAX_INTENSITY
+    val parallaxIntensity: Int = Constants.DEFAULT_PARALLAX_INTENSITY,
+    
+    // Blur when not on main home screen (live wallpaper mode only)
+    val enableBlurOffCenter: Boolean = false
 ) {
     /**
      * Check if any effects are applied

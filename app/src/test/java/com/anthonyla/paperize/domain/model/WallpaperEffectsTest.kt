@@ -65,7 +65,8 @@ class WallpaperEffectsTest {
         val effects = WallpaperEffects(
             enableDoubleTap = true,
             enableParallax = true,
-            parallaxIntensity = 100
+            parallaxIntensity = 100,
+            enableBlurOffCenter = true
         )
         assertFalse(effects.hasEffects)
     }
@@ -188,6 +189,7 @@ class WallpaperEffectsTest {
         assertFalse(effects.enableGrayscale)
         assertFalse(effects.enableDoubleTap)
         assertFalse(effects.enableParallax)
+        assertFalse(effects.enableBlurOffCenter)
     }
 
     @Test

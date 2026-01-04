@@ -111,6 +111,8 @@
   <string name="change_wallpaper_when_screen_turns_off">Change wallpaper when screen turns off</string>
   <string name="parallax_effect">Parallax Effect</string>
   <string name="wallpaper_moves_with_screen_scroll">Wallpaper moves with screen scroll</string>
+  <string name="blur_off_center">Blur When Not on Main Home Screen</string>
+  <string name="automatically_blur_when_scrolled_away">Automatically blur when scrolled away from center</string>
   <string name="live_wallpaper_name">Paperize Live Wallpaper</string>
   <string name="live_wallpaper_description">Dynamic wallpapers with effects and interactive features</string>
   <string name="visual_effects_note_live_mode">Note: Visual effects (blur, darken, vignette, grayscale) apply to all wallpapers in live mode.</string>
