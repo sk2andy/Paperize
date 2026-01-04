@@ -108,6 +108,7 @@ class PaperizeLiveWallpaperService : GLWallpaperService(), LifecycleOwner {
         // Store base effects settings (without dynamic blur adjustments)
         private var baseEffects: WallpaperEffects = WallpaperEffects.none()
         private var currentOffset: Float = 0.5f
+        private var currentOffsetStep: Float = 0.0f
 
         private val gestureDetector = GestureDetector(
             this@PaperizeLiveWallpaperService,
@@ -293,7 +294,7 @@ class PaperizeLiveWallpaperService : GLWallpaperService(), LifecycleOwner {
                     baseEffects = effects
 
                     // Apply effects with dynamic blur adjustment based on current offset
-                    val effectsToApply = calculateEffectsWithOffsetBlur(effects, currentOffset)
+                    val effectsToApply = calculateEffectsWithOffsetBlur(effects, currentOffset, currentOffsetStep)
                     renderer.updateEffects(effectsToApply)
                     renderer.updateScalingType(scalingType)
                     renderer.updateAdaptiveBrightness(settings.adaptiveBrightness)
@@ -344,9 +345,10 @@ class PaperizeLiveWallpaperService : GLWallpaperService(), LifecycleOwner {
             // Update parallax offset
             renderer.setNormalOffsetX(xOffset)
             
-            // Update current offset and apply dynamic blur if enabled
+            // Update current offset and offset step, then apply dynamic blur if enabled
             currentOffset = xOffset
-            val effectsToApply = calculateEffectsWithOffsetBlur(baseEffects, currentOffset)
+            currentOffsetStep = xOffsetStep
+            val effectsToApply = calculateEffectsWithOffsetBlur(baseEffects, currentOffset, currentOffsetStep)
             renderer.updateEffects(effectsToApply)
         }
 
@@ -361,35 +363,47 @@ class PaperizeLiveWallpaperService : GLWallpaperService(), LifecycleOwner {
         
         /**
          * Calculate effects with dynamic blur based on home screen offset.
-         * When enableBlurOffCenter is true and offset differs significantly from center (0.5),
-         * blur is applied automatically.
+         * When enableBlurOffCenter is true and the user is scrolling between screens,
+         * blur is applied automatically. When on any screen page, blur is removed.
          * 
          * @param effects Base effects settings from user preferences
-         * @param offset Current home screen offset (0.0 = leftmost, 0.5 = center, 1.0 = rightmost)
-         * @return Modified effects with blur applied based on offset position
+         * @param offset Current home screen offset (0.0 = leftmost screen, 1.0 = rightmost screen)
+         * @param offsetStep Step between screens (e.g., 0.25 for 4 screens, 0.33 for 3 screens)
+         * @return Modified effects with blur applied based on scroll position
          */
-        private fun calculateEffectsWithOffsetBlur(effects: WallpaperEffects, offset: Float): WallpaperEffects {
+        private fun calculateEffectsWithOffsetBlur(effects: WallpaperEffects, offset: Float, offsetStep: Float): WallpaperEffects {
             // If the feature is disabled, return base effects unchanged
             if (!effects.enableBlurOffCenter) {
                 return effects
             }
             
-            // Define threshold for "off center" detection
-            // Use 0.1 to allow some tolerance (0.4 to 0.6 is considered "center")
-            val centerThreshold = 0.1f
-            val isOffCenter = kotlin.math.abs(offset - 0.5f) > centerThreshold
+            // If offsetStep is 0 or very small, we only have one screen, so never blur
+            if (offsetStep < 0.01f) {
+                return effects
+            }
             
-            // If off center, enable blur with a default percentage
-            // If already on center or blur already enabled by user, respect existing settings
-            return if (isOffCenter) {
-                // Apply blur when off center, use default 50% if not already enabled
+            // Calculate if we're on a screen or between screens
+            // When offset is close to a multiple of offsetStep, we're on a screen
+            // When offset is between multiples, we're scrolling between screens
+            val normalizedOffset = offset / offsetStep
+            val nearestScreen = kotlin.math.round(normalizedOffset)
+            val distanceFromScreen = kotlin.math.abs(normalizedOffset - nearestScreen)
+            
+            // Use a threshold of 0.15 (15% of screen transition) to determine if we're "on" a screen
+            // This means we blur when more than 15% away from any screen position
+            val onScreenThreshold = 0.15f
+            val isOnScreen = distanceFromScreen < onScreenThreshold
+            
+            // Apply blur when scrolling between screens (not on a screen)
+            return if (!isOnScreen) {
+                // Apply blur when between screens, use default 50% if not already enabled
                 val blurPercentage = if (effects.enableBlur) effects.blurPercentage else 50
                 effects.copy(
                     enableBlur = true,
                     blurPercentage = blurPercentage
                 )
             } else {
-                // When on center, use the base blur settings (may be enabled or disabled by user)
+                // When on any screen, use the base blur settings (may be enabled or disabled by user)
                 effects
             }
         }
