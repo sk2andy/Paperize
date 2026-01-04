@@ -41,6 +41,7 @@ import androidx.core.net.toUri
 import com.anthonyla.paperize.core.constants.Constants
 import com.anthonyla.paperize.core.util.isValid
 import com.anthonyla.paperize.domain.model.Wallpaper
+import com.anthonyla.paperize.domain.model.WallpaperEffects
 import com.anthonyla.paperize.service.livewallpaper.gl.GLCompatibility
 import android.os.Handler
 import android.os.Looper
