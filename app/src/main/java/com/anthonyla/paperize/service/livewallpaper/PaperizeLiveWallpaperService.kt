@@ -109,6 +109,7 @@ class PaperizeLiveWallpaperService : GLWallpaperService(), LifecycleOwner {
         private var baseEffects: WallpaperEffects = WallpaperEffects.none()
         private var currentOffset: Float = 0.5f
         private var currentOffsetStep: Float = 0.0f
+        private var homeScreenOffset: Float? = null  // Track the home screen position
 
         private val gestureDetector = GestureDetector(
             this@PaperizeLiveWallpaperService,
@@ -342,6 +343,12 @@ class PaperizeLiveWallpaperService : GLWallpaperService(), LifecycleOwner {
             super.onOffsetsChanged(xOffset, yOffset, xOffsetStep, yOffsetStep, xPixelOffset, yPixelOffset)
             Log.d(TAG, "onOffsetsChanged: xOffset=$xOffset, xOffsetStep=$xOffsetStep, xPixelOffset=$xPixelOffset")
             
+            // Capture the home screen offset on first call (this is where the user starts)
+            if (homeScreenOffset == null && xOffsetStep > 0.01f) {
+                homeScreenOffset = xOffset
+                Log.d(TAG, "Home screen offset captured: $homeScreenOffset")
+            }
+            
             // Update parallax offset
             renderer.setNormalOffsetX(xOffset)
             
@@ -363,13 +370,13 @@ class PaperizeLiveWallpaperService : GLWallpaperService(), LifecycleOwner {
         
         /**
          * Calculate effects with dynamic blur based on home screen offset.
-         * When enableBlurOffCenter is true and the user is scrolling between screens,
-         * blur is applied automatically. When on any screen page, blur is removed.
+         * When enableBlurOffCenter is true, blur is applied on all screens except the home screen.
+         * The blur fades in/out smoothly during transitions.
          * 
          * @param effects Base effects settings from user preferences
          * @param offset Current home screen offset (0.0 = leftmost screen, 1.0 = rightmost screen)
          * @param offsetStep Step between screens (e.g., 0.25 for 4 screens, 0.33 for 3 screens)
-         * @return Modified effects with blur applied based on scroll position
+         * @return Modified effects with blur applied based on distance from home screen
          */
         private fun calculateEffectsWithOffsetBlur(effects: WallpaperEffects, offset: Float, offsetStep: Float): WallpaperEffects {
             // If the feature is disabled, return base effects unchanged
@@ -382,30 +389,37 @@ class PaperizeLiveWallpaperService : GLWallpaperService(), LifecycleOwner {
                 return effects
             }
             
-            // Calculate if we're on a screen or between screens
-            // When offset is close to a multiple of offsetStep, we're on a screen
-            // When offset is between multiples, we're scrolling between screens
-            val normalizedOffset = offset / offsetStep
-            val nearestScreen = kotlin.math.round(normalizedOffset)
-            val distanceFromScreen = kotlin.math.abs(normalizedOffset - nearestScreen)
+            // If we haven't captured the home screen offset yet, don't apply blur
+            val homeOffset = homeScreenOffset ?: return effects
             
-            // Use a threshold of 0.15 (15% of screen transition) to determine if we're "on" a screen
-            // This means we blur when more than 15% away from any screen position
-            val onScreenThreshold = 0.15f
-            val isOnScreen = distanceFromScreen < onScreenThreshold
+            // Calculate distance from home screen in terms of screen units
+            val distanceFromHome = kotlin.math.abs(offset - homeOffset)
             
-            // Apply blur when scrolling between screens (not on a screen)
-            return if (!isOnScreen) {
-                // Apply blur when between screens, use default 50% if not already enabled
-                val blurPercentage = if (effects.enableBlur) effects.blurPercentage else 50
-                effects.copy(
-                    enableBlur = true,
-                    blurPercentage = blurPercentage
-                )
+            // Calculate blur intensity based on distance from home
+            // Within 0.5 offset units (half a screen) from home: fade from 0% to 100% blur
+            // Beyond 0.5 offset units: full 100% blur
+            val blurIntensity = if (distanceFromHome < 0.5f * offsetStep) {
+                // Smooth fade-in zone: 0% at home, 100% at 0.5 screens away
+                (distanceFromHome / (0.5f * offsetStep)).coerceIn(0f, 1f)
             } else {
-                // When on any screen, use the base blur settings (may be enabled or disabled by user)
-                effects
+                // Full blur when more than 0.5 screens away
+                1f
             }
+            
+            // If blur intensity is very low (< 1%), don't apply blur to avoid artifacts
+            if (blurIntensity < 0.01f) {
+                return effects
+            }
+            
+            // Calculate the blur percentage to apply
+            val baseBlurPercentage = if (effects.enableBlur) effects.blurPercentage else 50
+            val adjustedBlurPercentage = (baseBlurPercentage * blurIntensity).toInt().coerceIn(1, 100)
+            
+            // Apply blur with the calculated intensity
+            return effects.copy(
+                enableBlur = true,
+                blurPercentage = adjustedBlurPercentage
+            )
         }
 
         override fun onDestroy() {
