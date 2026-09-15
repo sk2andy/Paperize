@@ -1,3 +1,12 @@
+## v4.1.3
+
+- Restored the live-wallpaper glass effect that smoothly blurs the wallpaper
+  while swiping away from the first launcher page.
+- Anchored the effect to the first page across wallpaper process restarts and
+  preserved its setting across app and wallpaper process restarts.
+
+**Full Changelog**: https://github.com/sk2andy/Paperize/compare/v4.1.2...v4.1.3
+
 ## v4.1.2
 
 - Added a CENTER wallpaper scaling option that fills the display while keeping
