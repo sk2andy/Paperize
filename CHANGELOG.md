@@ -1,3 +1,12 @@
+## v4.1.4
+
+- Restored the original reeded-glass appearance when leaving the first launcher
+  page by bringing back its historical coarse sampling.
+- Kept regular wallpaper blur smooth while blending continuously into the glass
+  effect during the home-screen swipe.
+
+**Full Changelog**: https://github.com/sk2andy/Paperize/compare/v4.1.3...v4.1.4
+
 ## v4.1.3
 
 - Restored the live-wallpaper glass effect that smoothly blurs the wallpaper
