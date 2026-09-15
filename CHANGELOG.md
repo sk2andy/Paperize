@@ -1,3 +1,12 @@
+## v4.1.2
+
+- Added a CENTER wallpaper scaling option that fills the display while keeping
+  the image centered instead of following launcher scrolling.
+- Updated static and live wallpaper rendering so CENTER crops consistently and
+  ignores parallax offsets.
+
+**Full Changelog**: https://github.com/Anthonyy232/Paperize/compare/v4.1.1...sk2andy:v4.1.2
+
 ## v4.1.1
 
 - Fixed manual changes triggering an immediate extra automatic change by deferring
