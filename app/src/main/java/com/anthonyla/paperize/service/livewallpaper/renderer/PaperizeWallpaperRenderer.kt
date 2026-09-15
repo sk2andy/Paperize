@@ -81,6 +81,7 @@ class PaperizeWallpaperRenderer(
     private var blurHTextureHandle = 0
     private var blurHResolutionHandle = 0
     private var blurHRadiusHandle = 0
+    private var blurHGlassFactorHandle = 0
 
     // Cached uniform locations for vertical blur program
     private var blurVPositionHandle = 0
@@ -89,6 +90,7 @@ class PaperizeWallpaperRenderer(
     private var blurVTextureHandle = 0
     private var blurVResolutionHandle = 0
     private var blurVRadiusHandle = 0
+    private var blurVGlassFactorHandle = 0
 
     // Geometry buffers
     private lateinit var vertexBuffer: FloatBuffer
@@ -200,12 +202,12 @@ class PaperizeWallpaperRenderer(
 
         // Determine if we need blur
         val launcherOffset = launcherOffsetState
-        val blurPercentage = OffsetBlurCalculator.calculateBlurPercentage(
+        val offsetBlur = OffsetBlurCalculator.calculate(
             effects = currentEffects,
             offset = launcherOffset.offset,
             offsetStep = launcherOffset.step
         )
-        val blurRadius = (blurPercentage / 100.0f) * Constants.MAX_BLUR_RADIUS
+        val blurRadius = (offsetBlur.blurPercentage / 100.0f) * Constants.MAX_BLUR_RADIUS
 
         // Draw current picture
         val crossfadeAlphas = GLGeometry.calculateCrossfadeAlphas(
@@ -218,6 +220,7 @@ class PaperizeWallpaperRenderer(
                 picture,
                 crossfadeAlphas.current,
                 blurRadius,
+                offsetBlur.glassFactor,
                 launcherOffset.offset
             )
         }
@@ -234,6 +237,7 @@ class PaperizeWallpaperRenderer(
                 picture,
                 crossfadeAlphas.next,
                 blurRadius,
+                offsetBlur.glassFactor,
                 launcherOffset.offset
             )
 
@@ -265,6 +269,7 @@ class PaperizeWallpaperRenderer(
         picture: GLPicture,
         alpha: Float,
         blurRadius: Float,
+        glassFactor: Float,
         launcherOffset: Float
     ) {
         // Calculate MVP matrix for Center Crop + Parallax
@@ -272,7 +277,7 @@ class PaperizeWallpaperRenderer(
 
         if (blurRadius > Constants.BLUR_MIN_THRESHOLD) {
             // Two-pass blur pipeline
-            drawWithBlur(picture, alpha, blurRadius)
+            drawWithBlur(picture, alpha, blurRadius, glassFactor)
         } else {
             // No blur - direct render with color effects
             drawWithColorEffects(picture, alpha)
@@ -285,7 +290,12 @@ class PaperizeWallpaperRenderer(
      * Pass 2: FBO1 texture → Vertical blur → FBO2
      * Pass 3: FBO2 texture → Color effects → Screen
      */
-    private fun drawWithBlur(picture: GLPicture, alpha: Float, blurRadius: Float) {
+    private fun drawWithBlur(
+        picture: GLPicture,
+        alpha: Float,
+        blurRadius: Float,
+        glassFactor: Float
+    ) {
         // Pass 1: Horizontal blur (source → FBO1)
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, blurFbo1)
         GLES20.glViewport(0, 0, surfaceWidth, surfaceHeight)
@@ -294,6 +304,7 @@ class PaperizeWallpaperRenderer(
         GLES20.glUseProgram(blurHorizontalProgram)
         GLES20.glUniform2f(blurHResolutionHandle, surfaceWidth.toFloat(), surfaceHeight.toFloat())
         GLES20.glUniform1f(blurHRadiusHandle, blurRadius)
+        GLES20.glUniform1f(blurHGlassFactorHandle, glassFactor)
         GLES20.glUniform1i(blurHTextureHandle, 0)  // Bind texture unit 0
 
         picture.draw(blurHorizontalProgram, blurHPositionHandle, blurHTexCoordHandle, mvpMatrix, blurHMvpMatrixHandle)
@@ -305,6 +316,7 @@ class PaperizeWallpaperRenderer(
         GLES20.glUseProgram(blurVerticalProgram)
         GLES20.glUniform2f(blurVResolutionHandle, surfaceWidth.toFloat(), surfaceHeight.toFloat())
         GLES20.glUniform1f(blurVRadiusHandle, blurRadius)
+        GLES20.glUniform1f(blurVGlassFactorHandle, glassFactor)
 
         // Bind horizontal blur result as input texture
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
@@ -480,6 +492,7 @@ class PaperizeWallpaperRenderer(
         blurHMvpMatrixHandle = GLES20.glGetUniformLocation(blurHorizontalProgram, "u_mvpMatrix")
         blurHResolutionHandle = GLES20.glGetUniformLocation(blurHorizontalProgram, "u_resolution")
         blurHRadiusHandle = GLES20.glGetUniformLocation(blurHorizontalProgram, "u_blurRadius")
+        blurHGlassFactorHandle = GLES20.glGetUniformLocation(blurHorizontalProgram, "u_glassFactor")
 
         // Cache uniform/attribute locations for vertical blur program
         blurVPositionHandle = GLES20.glGetAttribLocation(blurVerticalProgram, "a_position")
@@ -488,6 +501,7 @@ class PaperizeWallpaperRenderer(
         blurVMvpMatrixHandle = GLES20.glGetUniformLocation(blurVerticalProgram, "u_mvpMatrix")
         blurVResolutionHandle = GLES20.glGetUniformLocation(blurVerticalProgram, "u_resolution")
         blurVRadiusHandle = GLES20.glGetUniformLocation(blurVerticalProgram, "u_blurRadius")
+        blurVGlassFactorHandle = GLES20.glGetUniformLocation(blurVerticalProgram, "u_glassFactor")
 
         Log.d(TAG, "Shaders compiled and uniforms cached")
     }

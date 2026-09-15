@@ -44,83 +44,109 @@ object GLShaders {
     """
 
     /**
-     * Fragment shader for horizontal Gaussian blur pass.
-     * Uses 17-tap kernel (half-integer steps) to eliminate banding/ghosting at high blur radii.
-     * Weights are pre-computed for sigma ~= 1.815 sampled at {0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4} steps.
-     * Branchless: when blurRadius is 0, all offsets are 0 so all samples collapse to center.
+     * Fragment shader for horizontal blur and off-home reeded glass.
+     * Blends the smooth 17-tap kernel with Paperize's historical coarse 9-tap
+     * kernel. Its separated samples create the original fluted-glass look.
      */
     const val BLUR_HORIZONTAL_FRAGMENT_SHADER = """
         precision mediump float;
         uniform sampler2D u_texture;
         uniform vec2 u_resolution;
         uniform float u_blurRadius;
+        uniform float u_glassFactor;
         varying vec2 v_texCoord;
 
         void main() {
             vec2 pixelSize = 1.0 / u_resolution;
             float r = u_blurRadius;
 
-            // 17-tap Gaussian (half-integer steps: 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0)
-            // Doubles sampling density vs 9-tap to eliminate aliasing at high blur radii
-            vec4 color = texture2D(u_texture, v_texCoord) * 0.1120;
+            vec4 center = texture2D(u_texture, v_texCoord);
+            vec4 smoothColor = center * 0.1120;
+            vec4 glassColor = center * 0.2210;
 
-            color += (texture2D(u_texture, v_texCoord + vec2(-0.5 * pixelSize.x * r, 0.0)) +
-                      texture2D(u_texture, v_texCoord + vec2( 0.5 * pixelSize.x * r, 0.0))) * 0.1078;
-            color += (texture2D(u_texture, v_texCoord + vec2(-1.0 * pixelSize.x * r, 0.0)) +
-                      texture2D(u_texture, v_texCoord + vec2( 1.0 * pixelSize.x * r, 0.0))) * 0.0962;
-            color += (texture2D(u_texture, v_texCoord + vec2(-1.5 * pixelSize.x * r, 0.0)) +
-                      texture2D(u_texture, v_texCoord + vec2( 1.5 * pixelSize.x * r, 0.0))) * 0.0796;
-            color += (texture2D(u_texture, v_texCoord + vec2(-2.0 * pixelSize.x * r, 0.0)) +
-                      texture2D(u_texture, v_texCoord + vec2( 2.0 * pixelSize.x * r, 0.0))) * 0.0610;
-            color += (texture2D(u_texture, v_texCoord + vec2(-2.5 * pixelSize.x * r, 0.0)) +
-                      texture2D(u_texture, v_texCoord + vec2( 2.5 * pixelSize.x * r, 0.0))) * 0.0434;
-            color += (texture2D(u_texture, v_texCoord + vec2(-3.0 * pixelSize.x * r, 0.0)) +
-                      texture2D(u_texture, v_texCoord + vec2( 3.0 * pixelSize.x * r, 0.0))) * 0.0286;
-            color += (texture2D(u_texture, v_texCoord + vec2(-3.5 * pixelSize.x * r, 0.0)) +
-                      texture2D(u_texture, v_texCoord + vec2( 3.5 * pixelSize.x * r, 0.0))) * 0.0175;
-            color += (texture2D(u_texture, v_texCoord + vec2(-4.0 * pixelSize.x * r, 0.0)) +
-                      texture2D(u_texture, v_texCoord + vec2( 4.0 * pixelSize.x * r, 0.0))) * 0.0099;
+            vec4 pair = texture2D(u_texture, v_texCoord + vec2(-0.5 * pixelSize.x * r, 0.0)) +
+                        texture2D(u_texture, v_texCoord + vec2( 0.5 * pixelSize.x * r, 0.0));
+            smoothColor += pair * 0.1078;
+            pair = texture2D(u_texture, v_texCoord + vec2(-1.0 * pixelSize.x * r, 0.0)) +
+                   texture2D(u_texture, v_texCoord + vec2( 1.0 * pixelSize.x * r, 0.0));
+            smoothColor += pair * 0.0962;
+            glassColor += pair * 0.1899;
+            pair = texture2D(u_texture, v_texCoord + vec2(-1.5 * pixelSize.x * r, 0.0)) +
+                   texture2D(u_texture, v_texCoord + vec2( 1.5 * pixelSize.x * r, 0.0));
+            smoothColor += pair * 0.0796;
+            pair = texture2D(u_texture, v_texCoord + vec2(-2.0 * pixelSize.x * r, 0.0)) +
+                   texture2D(u_texture, v_texCoord + vec2( 2.0 * pixelSize.x * r, 0.0));
+            smoothColor += pair * 0.0610;
+            glassColor += pair * 0.1215;
+            pair = texture2D(u_texture, v_texCoord + vec2(-2.5 * pixelSize.x * r, 0.0)) +
+                   texture2D(u_texture, v_texCoord + vec2( 2.5 * pixelSize.x * r, 0.0));
+            smoothColor += pair * 0.0434;
+            pair = texture2D(u_texture, v_texCoord + vec2(-3.0 * pixelSize.x * r, 0.0)) +
+                   texture2D(u_texture, v_texCoord + vec2( 3.0 * pixelSize.x * r, 0.0));
+            smoothColor += pair * 0.0286;
+            glassColor += pair * 0.0577;
+            pair = texture2D(u_texture, v_texCoord + vec2(-3.5 * pixelSize.x * r, 0.0)) +
+                   texture2D(u_texture, v_texCoord + vec2( 3.5 * pixelSize.x * r, 0.0));
+            smoothColor += pair * 0.0175;
+            pair = texture2D(u_texture, v_texCoord + vec2(-4.0 * pixelSize.x * r, 0.0)) +
+                   texture2D(u_texture, v_texCoord + vec2( 4.0 * pixelSize.x * r, 0.0));
+            smoothColor += pair * 0.0099;
+            glassColor += pair * 0.0204;
 
-            gl_FragColor = color;
+            gl_FragColor = mix(smoothColor, glassColor, u_glassFactor);
         }
     """
 
     /**
-     * Fragment shader for vertical Gaussian blur pass.
-     * Uses 17-tap kernel matching the horizontal pass.
+     * Fragment shader for vertical blur and off-home reeded glass.
+     * Uses the same smooth-to-coarse blend as the horizontal pass.
      */
     const val BLUR_VERTICAL_FRAGMENT_SHADER = """
         precision mediump float;
         uniform sampler2D u_texture;
         uniform vec2 u_resolution;
         uniform float u_blurRadius;
+        uniform float u_glassFactor;
         varying vec2 v_texCoord;
 
         void main() {
             vec2 pixelSize = 1.0 / u_resolution;
             float r = u_blurRadius;
 
-            // 17-tap Gaussian (half-integer steps: 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0)
-            vec4 color = texture2D(u_texture, v_texCoord) * 0.1120;
+            vec4 center = texture2D(u_texture, v_texCoord);
+            vec4 smoothColor = center * 0.1120;
+            vec4 glassColor = center * 0.2210;
 
-            color += (texture2D(u_texture, v_texCoord + vec2(0.0, -0.5 * pixelSize.y * r)) +
-                      texture2D(u_texture, v_texCoord + vec2(0.0,  0.5 * pixelSize.y * r))) * 0.1078;
-            color += (texture2D(u_texture, v_texCoord + vec2(0.0, -1.0 * pixelSize.y * r)) +
-                      texture2D(u_texture, v_texCoord + vec2(0.0,  1.0 * pixelSize.y * r))) * 0.0962;
-            color += (texture2D(u_texture, v_texCoord + vec2(0.0, -1.5 * pixelSize.y * r)) +
-                      texture2D(u_texture, v_texCoord + vec2(0.0,  1.5 * pixelSize.y * r))) * 0.0796;
-            color += (texture2D(u_texture, v_texCoord + vec2(0.0, -2.0 * pixelSize.y * r)) +
-                      texture2D(u_texture, v_texCoord + vec2(0.0,  2.0 * pixelSize.y * r))) * 0.0610;
-            color += (texture2D(u_texture, v_texCoord + vec2(0.0, -2.5 * pixelSize.y * r)) +
-                      texture2D(u_texture, v_texCoord + vec2(0.0,  2.5 * pixelSize.y * r))) * 0.0434;
-            color += (texture2D(u_texture, v_texCoord + vec2(0.0, -3.0 * pixelSize.y * r)) +
-                      texture2D(u_texture, v_texCoord + vec2(0.0,  3.0 * pixelSize.y * r))) * 0.0286;
-            color += (texture2D(u_texture, v_texCoord + vec2(0.0, -3.5 * pixelSize.y * r)) +
-                      texture2D(u_texture, v_texCoord + vec2(0.0,  3.5 * pixelSize.y * r))) * 0.0175;
-            color += (texture2D(u_texture, v_texCoord + vec2(0.0, -4.0 * pixelSize.y * r)) +
-                      texture2D(u_texture, v_texCoord + vec2(0.0,  4.0 * pixelSize.y * r))) * 0.0099;
+            vec4 pair = texture2D(u_texture, v_texCoord + vec2(0.0, -0.5 * pixelSize.y * r)) +
+                        texture2D(u_texture, v_texCoord + vec2(0.0,  0.5 * pixelSize.y * r));
+            smoothColor += pair * 0.1078;
+            pair = texture2D(u_texture, v_texCoord + vec2(0.0, -1.0 * pixelSize.y * r)) +
+                   texture2D(u_texture, v_texCoord + vec2(0.0,  1.0 * pixelSize.y * r));
+            smoothColor += pair * 0.0962;
+            glassColor += pair * 0.1899;
+            pair = texture2D(u_texture, v_texCoord + vec2(0.0, -1.5 * pixelSize.y * r)) +
+                   texture2D(u_texture, v_texCoord + vec2(0.0,  1.5 * pixelSize.y * r));
+            smoothColor += pair * 0.0796;
+            pair = texture2D(u_texture, v_texCoord + vec2(0.0, -2.0 * pixelSize.y * r)) +
+                   texture2D(u_texture, v_texCoord + vec2(0.0,  2.0 * pixelSize.y * r));
+            smoothColor += pair * 0.0610;
+            glassColor += pair * 0.1215;
+            pair = texture2D(u_texture, v_texCoord + vec2(0.0, -2.5 * pixelSize.y * r)) +
+                   texture2D(u_texture, v_texCoord + vec2(0.0,  2.5 * pixelSize.y * r));
+            smoothColor += pair * 0.0434;
+            pair = texture2D(u_texture, v_texCoord + vec2(0.0, -3.0 * pixelSize.y * r)) +
+                   texture2D(u_texture, v_texCoord + vec2(0.0,  3.0 * pixelSize.y * r));
+            smoothColor += pair * 0.0286;
+            glassColor += pair * 0.0577;
+            pair = texture2D(u_texture, v_texCoord + vec2(0.0, -3.5 * pixelSize.y * r)) +
+                   texture2D(u_texture, v_texCoord + vec2(0.0,  3.5 * pixelSize.y * r));
+            smoothColor += pair * 0.0175;
+            pair = texture2D(u_texture, v_texCoord + vec2(0.0, -4.0 * pixelSize.y * r)) +
+                   texture2D(u_texture, v_texCoord + vec2(0.0,  4.0 * pixelSize.y * r));
+            smoothColor += pair * 0.0099;
+            glassColor += pair * 0.0204;
 
-            gl_FragColor = color;
+            gl_FragColor = mix(smoothColor, glassColor, u_glassFactor);
         }
     """
 

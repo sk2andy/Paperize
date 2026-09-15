@@ -163,6 +163,58 @@ class LiveWallpaperShaderInstrumentedTest {
         }
     }
 
+    @Test
+    fun offHomeGlassRestoresHistoricalCoarseSampling() {
+        listOf(
+            GLShaders.BLUR_HORIZONTAL_FRAGMENT_SHADER to true,
+            GLShaders.BLUR_VERTICAL_FRAGMENT_SHADER to false
+        ).forEach { (fragmentShader, horizontalBoundary) ->
+            val texture = createTexture(boundaryBitmap(horizontalBoundary))
+            val program = GLUtil.createProgram(GLShaders.VERTEX_SHADER, fragmentShader)
+
+            try {
+                drawBlur(program, texture, glassFactor = 0f)
+                val smooth = Color.red(readPixel(SIZE / 2, SIZE / 2))
+
+                drawBlur(program, texture, glassFactor = 1f)
+                val glass = Color.red(readPixel(SIZE / 2, SIZE / 2))
+
+                assertTrue(
+                    "Expected coarse glass sampling to differ from smooth blur: " +
+                        "smooth=$smooth, glass=$glass, horizontal=$horizontalBoundary",
+                    kotlin.math.abs(smooth - glass) >= 5
+                )
+            } finally {
+                GLES20.glDeleteProgram(program)
+                GLES20.glDeleteTextures(1, intArrayOf(texture), 0)
+            }
+        }
+    }
+
+    @Test
+    fun blurAndGlassKernelsPreserveSolidColors() {
+        listOf(
+            GLShaders.BLUR_HORIZONTAL_FRAGMENT_SHADER,
+            GLShaders.BLUR_VERTICAL_FRAGMENT_SHADER
+        ).forEach { fragmentShader ->
+            val texture = createTexture(solidBitmap(Color.rgb(80, 120, 200)))
+            val program = GLUtil.createProgram(GLShaders.VERTEX_SHADER, fragmentShader)
+
+            try {
+                listOf(0f, 1f).forEach { glassFactor ->
+                    drawBlur(program, texture, glassFactor)
+                    val rendered = readPixel(SIZE / 2, SIZE / 2)
+                    assertTrue(Color.red(rendered) in 78..82)
+                    assertTrue(Color.green(rendered) in 118..122)
+                    assertTrue(Color.blue(rendered) in 198..202)
+                }
+            } finally {
+                GLES20.glDeleteProgram(program)
+                GLES20.glDeleteTextures(1, intArrayOf(texture), 0)
+            }
+        }
+    }
+
     private fun drawEffects(
         program: Int,
         texture: Int,
@@ -183,10 +235,11 @@ class LiveWallpaperShaderInstrumentedTest {
         finishDraw(program)
     }
 
-    private fun drawBlur(program: Int, texture: Int) {
+    private fun drawBlur(program: Int, texture: Int, glassFactor: Float = 0f) {
         prepareDraw(program, texture)
         GLES20.glUniform2f(GLES20.glGetUniformLocation(program, "u_resolution"), SIZE.toFloat(), SIZE.toFloat())
         GLES20.glUniform1f(GLES20.glGetUniformLocation(program, "u_blurRadius"), 4f)
+        GLES20.glUniform1f(GLES20.glGetUniformLocation(program, "u_glassFactor"), glassFactor)
         finishDraw(program)
     }
 
