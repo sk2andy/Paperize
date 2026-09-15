@@ -88,6 +88,9 @@
   <string name="change_wallpaper_when_screen_turns_off">息屏时更换壁纸</string>
   <string name="parallax_effect">视差效果</string>
   <string name="wallpaper_moves_with_screen_scroll">在桌面页面之间滑动可移动壁纸（需要桌面支持）</string>
+  <string name="center">居中</string>
+  <string name="blur_off_center">离开主页时启用玻璃效果</string>
+  <string name="automatically_blur_when_scrolled_away">离开第一个主屏幕页面时平滑模糊壁纸</string>
   <string name="live_wallpaper_name">Paperize 动态壁纸</string>
   <string name="live_wallpaper_description">带特效与交互功能的动态壁纸</string>
     <string name="adaptive_brightness">自适应亮度</string>

@@ -23,7 +23,8 @@ data class WallpaperEffects(
     val enableDoubleTap: Boolean = false,
     val enableChangeOnScreenOff: Boolean = false,
     val enableParallax: Boolean = false,
-    val parallaxIntensity: Int = Constants.DEFAULT_PARALLAX_INTENSITY
+    val parallaxIntensity: Int = Constants.DEFAULT_PARALLAX_INTENSITY,
+    val enableBlurOffCenter: Boolean = false
 ) {
     /**
      * Check if any effects are applied

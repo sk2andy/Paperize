@@ -1104,6 +1104,25 @@ fun WallpaperScreen(
                             )
                         }
                     )
+
+                    SettingSwitch(
+                        title = R.string.blur_off_center,
+                        description = if (scheduleSettings.liveEffects.enableBlurOffCenter) {
+                            null
+                        } else {
+                            R.string.automatically_blur_when_scrolled_away
+                        },
+                        checked = scheduleSettings.liveEffects.enableBlurOffCenter,
+                        onCheckedChange = { enabled ->
+                            updateSettingsImmediate(
+                                scheduleSettings.copy(
+                                    liveEffects = scheduleSettings.liveEffects.copy(
+                                        enableBlurOffCenter = enabled
+                                    )
+                                )
+                            )
+                        }
+                    )
                 }
             }
         }

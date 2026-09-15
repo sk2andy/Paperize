@@ -385,7 +385,7 @@ class PaperizeLiveWallpaperService : GLWallpaperService(), LifecycleOwner {
         ) {
             super.onOffsetsChanged(xOffset, yOffset, xOffsetStep, yOffsetStep, xPixelOffset, yPixelOffset)
             Log.d(TAG, "onOffsetsChanged: xOffset=$xOffset, xOffsetStep=$xOffsetStep, xPixelOffset=$xPixelOffset")
-            renderer.setNormalOffsetX(xOffset)
+            renderer.setLauncherOffset(xOffset, xOffsetStep)
         }
 
         override fun onTouchEvent(event: MotionEvent) {

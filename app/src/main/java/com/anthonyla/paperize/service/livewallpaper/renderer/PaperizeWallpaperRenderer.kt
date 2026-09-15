@@ -111,8 +111,9 @@ class PaperizeWallpaperRenderer(
     // Effects
     @Volatile private var currentEffects = WallpaperEffects()
 
-    // Parallax
-    @Volatile private var normalOffsetX = 0.5f
+    // Launcher position drives both parallax and off-home blur.
+    private data class LauncherOffsetState(val offset: Float, val step: Float)
+    @Volatile private var launcherOffsetState = LauncherOffsetState(offset = 0f, step = 0f)
 
     // Scaling
     @Volatile private var currentScalingType = ScalingType.FILL
@@ -198,11 +199,13 @@ class PaperizeWallpaperRenderer(
         }
 
         // Determine if we need blur
-        val blurRadius = if (currentEffects.enableBlur) {
-            (currentEffects.blurPercentage / 100.0f) * Constants.MAX_BLUR_RADIUS
-        } else {
-            0f
-        }
+        val launcherOffset = launcherOffsetState
+        val blurPercentage = OffsetBlurCalculator.calculateBlurPercentage(
+            effects = currentEffects,
+            offset = launcherOffset.offset,
+            offsetStep = launcherOffset.step
+        )
+        val blurRadius = (blurPercentage / 100.0f) * Constants.MAX_BLUR_RADIUS
 
         // Draw current picture
         val crossfadeAlphas = GLGeometry.calculateCrossfadeAlphas(
@@ -211,7 +214,12 @@ class PaperizeWallpaperRenderer(
         )
 
         current?.let { picture ->
-            drawPictureWithEffects(picture, crossfadeAlphas.current, blurRadius)
+            drawPictureWithEffects(
+                picture,
+                crossfadeAlphas.current,
+                blurRadius,
+                launcherOffset.offset
+            )
         }
 
         // Draw next picture (if crossfading)
@@ -222,7 +230,12 @@ class PaperizeWallpaperRenderer(
             }
 
             // Draw next picture with its own alpha
-            drawPictureWithEffects(picture, crossfadeAlphas.next, blurRadius)
+            drawPictureWithEffects(
+                picture,
+                crossfadeAlphas.next,
+                blurRadius,
+                launcherOffset.offset
+            )
 
             // Update crossfade progress using time-based calculation
             // This ensures consistent animation duration regardless of refresh rate (60Hz, 90Hz, 120Hz, etc.)
@@ -248,11 +261,16 @@ class PaperizeWallpaperRenderer(
     /**
      * Draw a picture with full effects pipeline.
      */
-    private fun drawPictureWithEffects(picture: GLPicture, alpha: Float, blurRadius: Float) {
+    private fun drawPictureWithEffects(
+        picture: GLPicture,
+        alpha: Float,
+        blurRadius: Float,
+        launcherOffset: Float
+    ) {
         // Calculate MVP matrix for Center Crop + Parallax
-        calculateMvpMatrix(picture, mvpMatrix)
+        calculateMvpMatrix(picture, mvpMatrix, launcherOffset)
 
-        if (blurRadius > Constants.BLUR_MIN_THRESHOLD && currentEffects.enableBlur) {
+        if (blurRadius > Constants.BLUR_MIN_THRESHOLD) {
             // Two-pass blur pipeline
             drawWithBlur(picture, alpha, blurRadius)
         } else {
@@ -355,7 +373,11 @@ class PaperizeWallpaperRenderer(
     /**
      * Calculate MVP matrix for Center Crop scaling and Parallax.
      */
-    private fun calculateMvpMatrix(picture: GLPicture, matrix: FloatArray) {
+    private fun calculateMvpMatrix(
+        picture: GLPicture,
+        matrix: FloatArray,
+        launcherOffset: Float
+    ) {
         val viewWidth = surfaceWidth.toFloat()
         val viewHeight = surfaceHeight.toFloat()
         val imageWidth = picture.width.toFloat()
@@ -374,7 +396,7 @@ class PaperizeWallpaperRenderer(
             scalingType = currentScalingType,
             parallaxEnabled = currentEffects.enableParallax,
             parallaxIntensity = currentEffects.parallaxIntensity,
-            normalizedOffsetX = normalOffsetX
+            normalizedOffsetX = launcherOffset
         )
 
         // 3. Construct Matrix
@@ -707,15 +729,22 @@ class PaperizeWallpaperRenderer(
     }
 
     /**
-     * Set parallax scroll offset.
+     * Set launcher scroll position for parallax and off-home blur.
      * Can be called from any thread.
      *
      * @param offset Normalized offset (0.0 = left, 1.0 = right)
+     * @param offsetStep Normalized distance between launcher pages
      */
-    fun setNormalOffsetX(offset: Float) {
+    fun setLauncherOffset(offset: Float, offsetStep: Float) {
+        if (!offset.isFinite()) return
+
         val clampedOffset = offset.coerceIn(0f, 1f)
-        if (normalOffsetX != clampedOffset) {
-            normalOffsetX = clampedOffset
+        val validOffsetStep = offsetStep.takeIf {
+            it.isFinite() && it > OffsetBlurCalculator.MIN_OFFSET_STEP
+        } ?: 0f
+        val newState = LauncherOffsetState(clampedOffset, validOffsetStep)
+        if (launcherOffsetState != newState) {
+            launcherOffsetState = newState
             callbacks.requestRender()
         }
     }
